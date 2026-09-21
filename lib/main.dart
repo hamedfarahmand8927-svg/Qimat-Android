@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,6 +70,9 @@ class Accessory {
 }
 
 class QimatModel extends ChangeNotifier {
+  static const _storageKey = 'qimat_saved_state_v1';
+  SharedPreferences? _preferences;
+
   double goldPrice = 9850000;
   double weight = 5.25;
   double laborPercent = 7;
@@ -95,6 +102,91 @@ class QimatModel extends ChangeNotifier {
     Accessory('آویز', 800000, Icons.water_drop_outlined),
   ];
 
+  Future<void> load() async {
+    _preferences = await SharedPreferences.getInstance();
+    final saved = _preferences!.getString(_storageKey);
+    if (saved == null) return;
+    try {
+      final data = jsonDecode(saved) as Map<String, dynamic>;
+      goldPrice = (data['goldPrice'] as num?)?.toDouble() ?? goldPrice;
+      weight = (data['weight'] as num?)?.toDouble() ?? weight;
+      laborPercent = (data['laborPercent'] as num?)?.toDouble() ?? laborPercent;
+      profitPercent = (data['profitPercent'] as num?)?.toDouble() ?? profitPercent;
+      taxPercent = (data['taxPercent'] as num?)?.toDouble() ?? taxPercent;
+      manualGoldPrice = data['manualGoldPrice'] as bool? ?? manualGoldPrice;
+
+      final savedTypes = data['types'] as List<dynamic>?;
+      if (savedTypes != null && savedTypes.isNotEmpty) {
+        types
+          ..clear()
+          ..addAll(savedTypes.map((item) {
+            final value = item as Map<String, dynamic>;
+            return ItemType(
+              value['name'] as String,
+              (value['minimumLabor'] as num).toDouble(),
+              IconData(value['icon'] as int, fontFamily: 'MaterialIcons'),
+            );
+          }));
+      }
+
+      final savedAccessories = data['accessories'] as List<dynamic>?;
+      if (savedAccessories != null && savedAccessories.isNotEmpty) {
+        accessories
+          ..clear()
+          ..addAll(savedAccessories.map((item) {
+            final value = item as Map<String, dynamic>;
+            return Accessory(
+              value['name'] as String,
+              (value['price'] as num).toDouble(),
+              IconData(value['icon'] as int, fontFamily: 'MaterialIcons'),
+            );
+          }));
+      }
+
+      selectedType = ((data['selectedType'] as num?)?.toInt() ?? selectedType)
+          .clamp(0, types.length - 1)
+          .toInt();
+      selectedAccessory =
+          ((data['selectedAccessory'] as num?)?.toInt() ?? selectedAccessory)
+              .clamp(0, accessories.length - 1)
+              .toInt();
+    } catch (_) {
+      // A damaged old preference must not prevent the calculator from opening.
+    }
+  }
+
+  Future<void> _save() async {
+    final preferences = _preferences ??= await SharedPreferences.getInstance();
+    await preferences.setString(
+      _storageKey,
+      jsonEncode({
+        'goldPrice': goldPrice,
+        'weight': weight,
+        'laborPercent': laborPercent,
+        'profitPercent': profitPercent,
+        'taxPercent': taxPercent,
+        'manualGoldPrice': manualGoldPrice,
+        'selectedType': selectedType,
+        'selectedAccessory': selectedAccessory,
+        'types': types.map((item) => {
+              'name': item.name,
+              'minimumLabor': item.minimumLabor,
+              'icon': item.icon.codePoint,
+            }).toList(),
+        'accessories': accessories.map((item) => {
+              'name': item.name,
+              'price': item.price,
+              'icon': item.icon.codePoint,
+            }).toList(),
+      }),
+    );
+  }
+
+  void _changed() {
+    notifyListeners();
+    unawaited(_save());
+  }
+
   double get rawGold => goldPrice * weight;
   double get percentageLabor => rawGold * laborPercent / 100;
   double get minimumLabor => types[selectedType].minimumLabor;
@@ -105,31 +197,31 @@ class QimatModel extends ChangeNotifier {
   double get accessoryPrice => accessories[selectedAccessory].price;
   double get finalPrice => rawGold + finalLabor + profit + tax + accessoryPrice;
 
-  void setGoldPrice(double v) { goldPrice = v; notifyListeners(); }
-  void setWeight(double v) { weight = v; notifyListeners(); }
-  void setLabor(double v) { laborPercent = v; notifyListeners(); }
-  void setProfit(double v) { profitPercent = v; notifyListeners(); }
-  void setTax(double v) { taxPercent = v; notifyListeners(); }
-  void setType(int i) { selectedType = i; notifyListeners(); }
-  void setAccessory(int i) { selectedAccessory = i; notifyListeners(); }
-  void setGoldMode(bool manual) { manualGoldPrice = manual; notifyListeners(); }
+  void setGoldPrice(double v) { goldPrice = v; _changed(); }
+  void setWeight(double v) { weight = v; _changed(); }
+  void setLabor(double v) { laborPercent = v; _changed(); }
+  void setProfit(double v) { profitPercent = v; _changed(); }
+  void setTax(double v) { taxPercent = v; _changed(); }
+  void setType(int i) { selectedType = i; _changed(); }
+  void setAccessory(int i) { selectedAccessory = i; _changed(); }
+  void setGoldMode(bool manual) { manualGoldPrice = manual; _changed(); }
 
-  void addType(ItemType item) { types.add(item); notifyListeners(); }
-  void updateType(int index, ItemType item) { types[index] = item; notifyListeners(); }
+  void addType(ItemType item) { types.add(item); _changed(); }
+  void updateType(int index, ItemType item) { types[index] = item; _changed(); }
   void deleteType(int index) {
     if (types.length <= 1) return;
     types.removeAt(index);
     if (selectedType >= types.length) selectedType = 0;
-    notifyListeners();
+    _changed();
   }
 
-  void addAccessory(Accessory item) { accessories.add(item); notifyListeners(); }
-  void updateAccessory(int index, Accessory item) { accessories[index] = item; notifyListeners(); }
+  void addAccessory(Accessory item) { accessories.add(item); _changed(); }
+  void updateAccessory(int index, Accessory item) { accessories[index] = item; _changed(); }
   void deleteAccessory(int index) {
     if (accessories.length <= 1) return;
     accessories.removeAt(index);
     if (selectedAccessory >= accessories.length) selectedAccessory = 0;
-    notifyListeners();
+    _changed();
   }
 }
 
@@ -142,7 +234,14 @@ class QimatShell extends StatefulWidget {
 
 class _QimatShellState extends State<QimatShell> {
   final model = QimatModel();
+  late final Future<void> _loading;
   int index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loading = model.load();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,11 +251,18 @@ class _QimatShellState extends State<QimatShell> {
       TypesPage(model: model),
       SettingsPage(model: model),
     ];
-    return Scaffold(
-      body: SafeArea(child: IndexedStack(index: index, children: screens)),
-      bottomNavigationBar: QimatBottomNav(
-        index: index,
-        onChanged: (i) => setState(() => index = i),
+    return FutureBuilder<void>(
+      future: _loading,
+      builder: (context, snapshot) => Scaffold(
+        body: snapshot.connectionState != ConnectionState.done
+            ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+            : SafeArea(child: IndexedStack(index: index, children: screens)),
+        bottomNavigationBar: snapshot.connectionState != ConnectionState.done
+            ? null
+            : QimatBottomNav(
+                index: index,
+                onChanged: (i) => setState(() => index = i),
+              ),
       ),
     );
   }
@@ -644,7 +750,7 @@ class SettingsPage extends StatelessWidget {
             const SettingTile(icon: Icons.currency_exchange_rounded, title: 'واحد پول', value: 'تومان'),
             const SettingTile(icon: Icons.format_list_numbered_rounded, title: 'قالب اعداد', value: '۳,۴۵۰,۰۰۰'),
             SettingTile(icon: Icons.support_agent_rounded, title: 'پشتیبانی / بازیابی', value: '', onTap: () {}),
-            SettingTile(icon: Icons.info_outline_rounded, title: 'درباره برنامه', value: 'نسخه 0.2.0', onTap: () {}),
+            SettingTile(icon: Icons.info_outline_rounded, title: 'درباره برنامه', value: 'نسخه 1.2.3', onTap: () {}),
           ],
         ),
       ),
@@ -921,21 +1027,65 @@ class FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, textDirection: TextDirection.rtl, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)));
 }
 
-class QimatTextField extends StatelessWidget {
-  const QimatTextField({super.key, required this.controller, required this.hint, this.keyboardType});
+class QimatTextField extends StatefulWidget {
+  const QimatTextField({
+    super.key,
+    required this.controller,
+    required this.hint,
+    this.keyboardType,
+    this.autofocus = false,
+    this.selectAllOnFocus = true,
+  });
   final TextEditingController controller;
   final String hint;
   final TextInputType? keyboardType;
+  final bool autofocus;
+  final bool selectAllOnFocus;
+
+  @override
+  State<QimatTextField> createState() => _QimatTextFieldState();
+}
+
+class _QimatTextFieldState extends State<QimatTextField> {
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode()..addListener(_handleFocusChange);
+  }
+
+  void _handleFocusChange() {
+    if (!_focusNode.hasFocus || !widget.selectAllOnFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_focusNode.hasFocus) return;
+      widget.controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: widget.controller.text.length,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode
+      ..removeListener(_handleFocusChange)
+      ..dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
+      controller: widget.controller,
+      focusNode: _focusNode,
+      autofocus: widget.autofocus,
+      keyboardType: widget.keyboardType,
       textDirection: TextDirection.rtl,
       decoration: InputDecoration(
         filled: true,
         fillColor: AppColors.card,
-        hintText: hint,
+        hintText: widget.hint,
         hintTextDirection: TextDirection.rtl,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.border)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.border)),
@@ -1027,7 +1177,12 @@ Future<void> showNumberEditor(
         children: [
           Text(title, textDirection: TextDirection.rtl, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           const SizedBox(height: 12),
-          QimatTextField(controller: controller, hint: '0', keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          QimatTextField(
+            controller: controller,
+            hint: '0',
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
           const SizedBox(height: 14),
           BrownButton(text: 'ثبت', onTap: () => Navigator.pop(context, parseNumber(controller.text))),
         ],
