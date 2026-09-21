@@ -28,15 +28,15 @@ jobs:
         run: flutter pub get
 
       - name: Build release APK
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release
 
       - name: Rename APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk Qimat_v1.2.3_Android.apk
+        run: cp build/app/outputs/flutter-apk/app-release.apk Qimat_v1.2.4_Android.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Qimat-v1.2.3-Android-APK
-          path: Qimat_v1.2.3_Android.apk
+          name: Qimat-v1.2.4-Android-APK
+          path: Qimat_v1.2.4_Android.apk
           if-no-files-found: error
           retention-days: 30

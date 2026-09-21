@@ -70,7 +70,7 @@ class Accessory {
 }
 
 class QimatModel extends ChangeNotifier {
-  static const _storageKey = 'qimat_saved_state_v1';
+  static const _storageKey = 'qimat_saved_state_v2';
   SharedPreferences? _preferences;
 
   double goldPrice = 9850000;
@@ -124,7 +124,7 @@ class QimatModel extends ChangeNotifier {
             return ItemType(
               value['name'] as String,
               (value['minimumLabor'] as num).toDouble(),
-              IconData(value['icon'] as int, fontFamily: 'MaterialIcons'),
+              iconFromStorageKey(value['icon'] as String?),
             );
           }));
       }
@@ -138,7 +138,7 @@ class QimatModel extends ChangeNotifier {
             return Accessory(
               value['name'] as String,
               (value['price'] as num).toDouble(),
-              IconData(value['icon'] as int, fontFamily: 'MaterialIcons'),
+              iconFromStorageKey(value['icon'] as String?),
             );
           }));
       }
@@ -171,12 +171,12 @@ class QimatModel extends ChangeNotifier {
         'types': types.map((item) => {
               'name': item.name,
               'minimumLabor': item.minimumLabor,
-              'icon': item.icon.codePoint,
+              'icon': iconStorageKey(item.icon),
             }).toList(),
         'accessories': accessories.map((item) => {
               'name': item.name,
               'price': item.price,
-              'icon': item.icon.codePoint,
+              'icon': iconStorageKey(item.icon),
             }).toList(),
       }),
     );
@@ -750,7 +750,7 @@ class SettingsPage extends StatelessWidget {
             const SettingTile(icon: Icons.currency_exchange_rounded, title: 'واحد پول', value: 'تومان'),
             const SettingTile(icon: Icons.format_list_numbered_rounded, title: 'قالب اعداد', value: '۳,۴۵۰,۰۰۰'),
             SettingTile(icon: Icons.support_agent_rounded, title: 'پشتیبانی / بازیابی', value: '', onTap: () {}),
-            SettingTile(icon: Icons.info_outline_rounded, title: 'درباره برنامه', value: 'نسخه 1.2.3', onTap: () {}),
+            SettingTile(icon: Icons.info_outline_rounded, title: 'درباره برنامه', value: 'نسخه 1.2.4', onTap: () {}),
           ],
         ),
       ),
@@ -1211,4 +1211,38 @@ String trimNumber(double value) {
 double parseNumber(String text) {
   final cleaned = text.replaceAll(',', '').replaceAll('٫', '.').replaceAll(RegExp(r'[^0-9.]'), '');
   return double.tryParse(cleaned) ?? 0;
+}
+
+String iconStorageKey(IconData icon) {
+  if (icon == Icons.emoji_objects_outlined) return 'bulb';
+  if (icon == Icons.ring_volume_outlined) return 'ring';
+  if (icon == Icons.diamond_outlined) return 'diamond';
+  if (icon == Icons.favorite_border_rounded) return 'heart';
+  if (icon == Icons.link_rounded) return 'link';
+  if (icon == Icons.link_outlined) return 'linkOutlined';
+  if (icon == Icons.water_drop_outlined) return 'drop';
+  if (icon == Icons.circle_outlined) return 'circle';
+  if (icon == Icons.filter_vintage_outlined) return 'flower';
+  if (icon == Icons.cut_outlined) return 'cut';
+  if (icon == Icons.texture_rounded) return 'texture';
+  if (icon == Icons.join_inner_outlined) return 'join';
+  return 'diamond';
+}
+
+IconData iconFromStorageKey(String? key) {
+  switch (key) {
+    case 'bulb': return Icons.emoji_objects_outlined;
+    case 'ring': return Icons.ring_volume_outlined;
+    case 'heart': return Icons.favorite_border_rounded;
+    case 'link': return Icons.link_rounded;
+    case 'linkOutlined': return Icons.link_outlined;
+    case 'drop': return Icons.water_drop_outlined;
+    case 'circle': return Icons.circle_outlined;
+    case 'flower': return Icons.filter_vintage_outlined;
+    case 'cut': return Icons.cut_outlined;
+    case 'texture': return Icons.texture_rounded;
+    case 'join': return Icons.join_inner_outlined;
+    case 'diamond':
+    default: return Icons.diamond_outlined;
+  }
 }

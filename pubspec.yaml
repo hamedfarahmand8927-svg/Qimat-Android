@@ -1,7 +1,7 @@
 name: qimat
 description: Qimat jewelry price calculator for Hami Gallery
 publish_to: "none"
-version: 1.2.3+13
+version: 1.2.4+14
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
