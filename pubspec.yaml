@@ -1,7 +1,7 @@
 name: qimat
 description: Qimat jewelry price calculator for Hami Gallery
 publish_to: "none"
-version: 1.2.2+12
+version: 1.2.3+13
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
